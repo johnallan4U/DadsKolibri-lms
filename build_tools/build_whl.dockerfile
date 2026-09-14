@@ -55,12 +55,15 @@ COPY requirements/ requirements/
 RUN echo '--- Installing Python dependencies' && \
     pip install -r requirements/build.txt
 
-# Set pnpm store folder for easy binding during runtime (see -v pnpm_cache
-# in the docker-whl Makefile target)
-RUN pnpm config set store-dir /pnpm_cache
-
 # Copy all files in this directory
 COPY . .
+
+# Set pnpm store folder for easy binding during runtime (see -v pnpm_cache
+# in the docker-whl Makefile target). Must run after COPY: corepack needs
+# package.json's "packageManager" field in the cwd to resolve the pinned
+# pnpm version -- run any earlier and it falls back to a default version
+# that isn't actually fetchable, and errors with MODULE_NOT_FOUND.
+RUN pnpm config set store-dir /pnpm_cache
 
 CMD echo '--- Installing JS dependencies' && \
     pnpm install --frozen-lockfile && \
