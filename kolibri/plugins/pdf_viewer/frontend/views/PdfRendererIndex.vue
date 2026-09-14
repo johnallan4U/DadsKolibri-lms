@@ -470,10 +470,13 @@
         return this.$refs.recycleList.$el.scrollTop / this.$refs.recycleList.$el.scrollHeight;
       },
       scrolledToEnd() {
-        return (
-          this.$refs.recycleList.$el.scrollTop + this.$refs.recycleList.$el.clientHeight ===
-          this.$refs.recycleList.$el.scrollHeight
-        );
+        // scrollTop/clientHeight/scrollHeight are sub-pixel floats (device
+        // pixel ratio, zoom, fractional layout), so they almost never add up
+        // exactly even when the reader is genuinely at the last page. A small
+        // tolerance is required, or the final page never registers as
+        // visited and 'finished' never fires.
+        const el = this.$refs.recycleList.$el;
+        return el.scrollTop + el.clientHeight >= el.scrollHeight - 1;
       },
       savePosition(val) {
         this.currentLocation = val;
