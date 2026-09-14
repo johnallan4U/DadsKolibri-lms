@@ -2,6 +2,16 @@ FROM python:3.6
 
 ENV NODE_VERSION=20.19.3
 
+# python:3.6 is EOL Debian bullseye; its packages have aged off the live
+# security.debian.org mirror onto archive.debian.org (bare 404s otherwise).
+RUN sed -i \
+    -e 's|deb.debian.org/debian-security|archive.debian.org/debian-security|g' \
+    -e 's|deb.debian.org/debian|archive.debian.org/debian|g' \
+    -e 's|security.debian.org|archive.debian.org|g' \
+    /etc/apt/sources.list && \
+    sed -i '/stretch-updates/d' /etc/apt/sources.list && \
+    echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/99no-check-valid-until
+
 # install required packages
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -y \
