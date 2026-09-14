@@ -31,20 +31,21 @@ RUN ln -s /usr/bin/python3.6 /usr/bin/python
 # for current platform
 RUN pip install -U pip
 
-# add yarn ppa
-RUN (curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add -) && \
-    echo "deb https://dl.yarnpkg.com/debian/ stable main" | tee /etc/apt/sources.list.d/yarn.list
-
-# install nodejs and yarn
+# install nodejs, then enable Corepack so `pnpm` resolves to the version
+# pinned by package.json's "packageManager" field. commit 75b44ba5a6
+# ("chore: migrate from yarn to pnpm") updated the docker-whl Makefile
+# target's cache volume to pnpm_cache but never touched this Dockerfile,
+# which was still installing and invoking classic Yarn -- it errored
+# because package.json no longer declares yarn as its packageManager.
 RUN apt-get update && \
     curl -sSO https://deb.nodesource.com/node_20.x/pool/main/n/nodejs/nodejs_$NODE_VERSION-1nodesource1_amd64.deb && \
     dpkg -i ./nodejs_$NODE_VERSION-1nodesource1_amd64.deb && \
     rm nodejs_$NODE_VERSION-1nodesource1_amd64.deb && \
-    apt-get install yarn
+    corepack enable
 
 RUN git lfs install &&\
     mkdir kolibri &&\
-    mkdir yarn_cache &&\
+    mkdir pnpm_cache &&\
     mkdir cext_cache
 
 WORKDIR /kolibri
@@ -54,14 +55,15 @@ COPY requirements/ requirements/
 RUN echo '--- Installing Python dependencies' && \
     pip install -r requirements/build.txt
 
-# Set yarn cache folder for easy binding during runtime
-RUN yarn config set cache-folder /yarn_cache
+# Set pnpm store folder for easy binding during runtime (see -v pnpm_cache
+# in the docker-whl Makefile target)
+RUN pnpm config set store-dir /pnpm_cache
 
 # Copy all files in this directory
 COPY . .
 
 CMD echo '--- Installing JS dependencies' && \
-    yarn install --pure-lockfile && \
+    pnpm install --frozen-lockfile && \
     echo '--- Making whl' && \
     make dist && \
     echo '--- Making pex' && \
